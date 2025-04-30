@@ -86,6 +86,10 @@ void setup()
   // }
   // Serial.println("SD Card ready!");
 
+  driveSwitch.setDebounceTime(50);
+  nuetralSwitch.setDebounceTime(50);
+  reverseSwitch.setDebounceTime(50);
+
   delay(1000);
 }
 
@@ -150,6 +154,21 @@ void buckset(float start, float end)
   }
 }
 
+  Serial.println("CURRENT MODE IS:" + currentMode);
+
+  switch (currentMode) {
+  case DRIVE:
+    UART.setDuty(duty);
+    break;
+
+  case REVERSE:
+    UART.setDuty(-duty);
+    break;
+
+  case NEUTRAL:
+    UART.setDuty(0);
+    break;
+  }
 
 void loop()
 { // --------------------------------- LOOP ---------------------------------
