@@ -18,8 +18,11 @@ ezButton reverseSwitch(51);
 
 String mode = "none";
 String powerSource = "Off";
+String incomingData = "";
+bool newData = false;
 
 #define readPIN A0       // pot pin
+#define batRead A1 
 #define SignalBattery 48 // signal from buck to activate battery relay
 #define SignalSolar 50   // signal from buck to activate solar relay
 
@@ -27,7 +30,7 @@ String powerSource = "Off";
 #define relaySolar 25   // output pin to control solar relay
 
 VescUart UART;
-BuckPSU psu(Serial2);
+// BuckPSU psu(Serial2);
 
 File xmlFile;
 
@@ -42,11 +45,11 @@ void setup()
   lcd.init();
   lcd.backlight();
 
-  Serial.begin(9600);
+  // Serial.begin(9600);
 
   /** Setup UART port (Serial1 on Atmega32u4) */
-  Serial1.begin(115200);
-  Serial2.begin(4800);
+  Serial.begin(115200);
+  // Serial2.begin(4800);
 
   // while (!Serial)
   // {
@@ -54,7 +57,7 @@ void setup()
   // }
 
   /** Define which ports to use as UART */
-  UART.setSerialPort(&Serial1);
+  UART.setSerialPort(&Serial);
 
 
   // if switches arent working, uncomment next 3 lines: ----> (Switch troubleshooting)
@@ -63,6 +66,7 @@ void setup()
   // pinMode(reverseSwitch, INPUT_PULLUP);
 
   pinMode(readPIN, INPUT);
+  pinMode(batRead, INPUT);
 
   pinMode(SignalBattery, INPUT_PULLUP);
   pinMode(SignalSolar, INPUT_PULLUP);
@@ -87,11 +91,27 @@ void setup()
   // Serial.println("SD Card ready!");
 
   driveSwitch.setDebounceTime(50);
-  nuetralSwitch.setDebounceTime(50);
+  neutralSwitch.setDebounceTime(50);
   reverseSwitch.setDebounceTime(50);
 
   delay(1000);
 }
+
+// void readSerial() {
+//   while (Serial.available()) {
+//     char c = Serial.read();;
+//     if (c == '\n') {
+//       newData = true;
+//       break;
+//     } else {
+//       incomingData += c;
+//     }
+//   }
+
+//   if (incomingData.length() > 100) {
+//     incomingData = "";
+//   }
+// }
 
 void dutyset(float start, float end)
 {
@@ -154,27 +174,41 @@ void buckset(float start, float end)
   }
 }
 
-  Serial.println("CURRENT MODE IS:" + currentMode);
+  // Serial.println("CURRENT MODE IS:" + currentMode);
 
-  switch (currentMode) {
-  case DRIVE:
-    UART.setDuty(duty);
-    break;
+  // switch (currentMode) {
+  // case DRIVE:
+  //   UART.setDuty(duty);
+  //   break;
 
-  case REVERSE:
-    UART.setDuty(-duty);
-    break;
+  // case REVERSE:
+  //   UART.setDuty(-duty);
+  //   break;
 
-  case NEUTRAL:
-    UART.setDuty(0);
-    break;
-  }
+  // case NEUTRAL:
+  //   UART.setDuty(0);
+  //   break;
+  // }
 
 void loop()
 { // --------------------------------- LOOP ---------------------------------
 
   // lcd.clear();
 
+  readSerial();
+
+  if (newData) {
+    newData = false;
+
+    char mode = incomingData.charAt(0);
+    float value = incomingData.substring(2).toFloat();
+
+    Serial.print("Incoming Mode: " );  Serial.println(mode);
+    Serial.print("Incoming Value: ");  Serial.println(value);
+  }
+
+  float batvolt = digitalRead(batRead);
+  Serial.println(batvolt);
   int batonoff = digitalRead(SignalBattery);
   // int batonoff = 0;
   int solonoff = digitalRead(SignalSolar);
@@ -209,6 +243,8 @@ void loop()
     buckset(28000, 0);
     psu.enableOutput(false);
   }
+
+  digitalWrite(relayBattery, HIGH);
 
   driveSwitch.loop();
   neutralSwitch.loop();
@@ -277,6 +313,7 @@ void loop()
     Serial.print(power); Serial.print(",");
     Serial.print(duty); Serial.print(",");
     Serial.print(mode); Serial.print(",");
+    Serial.print(batvolt); Serial.print(",");
     Serial.println(powerSource);    
 
     lcd.setCursor(0, 0);
